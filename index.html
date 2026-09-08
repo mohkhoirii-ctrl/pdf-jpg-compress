@@ -573,6 +573,31 @@ input[type="range"].meter::-moz-range-thumb {
 }
 .tool[data-dir="b"] .result-card .dl { color: var(--accent2); }
 
+/* Delete-pages picker (interactive contact sheet — click a page to
+   mark/unmark it for deletion) */
+#delete-results-grid .result-card {
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s ease;
+}
+#delete-results-grid .result-card:hover { border-color: var(--accent-strong); }
+#delete-results-grid .result-card .mark-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: hsl(var(--shadow-color) / 0.45);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+#delete-results-grid .result-card.marked { border-color: var(--danger); }
+#delete-results-grid .result-card.marked .thumb img { opacity: 0.4; }
+#delete-results-grid .result-card.marked .mark-icon { opacity: 1; }
+#delete-results-grid .result-card.marked .size { color: var(--danger); font-weight: 700; }
+
 /* JPEG -> PDF file list (reorderable) */
 .filelist {
   display: flex;
@@ -687,7 +712,7 @@ input[type="range"].meter::-moz-range-thumb {
   <header class="app-header">
     <span class="stamp"><span class="dot"></span> Runs entirely in your browser — files never leave this tab</span>
     <h1 class="app-title"><span class="b">PDF</span><span class="divider">⇄</span><span class="j">JPEG</span></h1>
-    <p class="app-sub">Convert PDF to JPEG and back, or compress a PDF down. <strong>No uploads</strong> — every conversion happens on your device.</p>
+    <p class="app-sub">Convert PDF to JPEG and back, compress a PDF down, or delete pages from one. <strong>No uploads</strong> — every conversion happens on your device.</p>
   </header>
 
   <!-- ===================== TOOL 1: PDF <-> JPEG ===================== -->
@@ -913,6 +938,60 @@ input[type="range"].meter::-moz-range-thumb {
       </div>
     </div>
   </section>
+
+  <!-- ===================== TOOL 5: Delete PDF Pages ===================== -->
+  <section class="tool" data-dir="a" id="tool-delete">
+    <div class="tool-heading"><h2><span class="b">Hapus</span> <span class="j">Halaman PDF</span></h2></div>
+    <p class="tool-desc">Klik halaman yang ingin dihapus, lalu unduh PDF hasilnya. Halaman yang disimpan digambar ulang sebagai gambar kualitas tinggi, jadi teks yang tadinya bisa di-select akan berubah jadi gambar dan tidak lagi bisa diseleksi/dicari.</p>
+
+    <div class="card">
+      <div class="dropzone" id="delete-dropzone" tabindex="0" role="button" aria-label="Choose a PDF file">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9.5 13.5l5 5m0-5l-5 5" stroke-linecap="round"/></svg>
+        <div class="dropzone-title">Drop a PDF here, or click to browse</div>
+        <div class="dropzone-hint">One file at a time · stays on this device</div>
+        <input type="file" id="delete-input" accept="application/pdf,.pdf" />
+      </div>
+      <div class="file-summary" id="delete-file-summary" style="display:none; margin-top:14px;">
+        <div class="swatch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></div>
+        <div class="info"><div class="name" id="delete-file-name">—</div><div class="meta" id="delete-file-meta">—</div></div>
+        <button class="clear-btn" id="delete-clear-btn" type="button">Remove</button>
+      </div>
+    </div>
+
+    <div class="alert error" id="delete-error">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+      <span id="delete-error-text"></span>
+    </div>
+
+    <div id="delete-results-block" style="display:none; margin-top:18px;">
+      <div class="results-head">
+        <h2 id="delete-results-title">Halaman</h2>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-secondary" id="delete-select-all-btn" type="button" style="padding:7px 12px; font-size:12.5px;">Tandai semua</button>
+          <button class="btn btn-secondary" id="delete-select-none-btn" type="button" style="padding:7px 12px; font-size:12.5px;">Batal semua</button>
+        </div>
+      </div>
+      <div class="results-grid" id="delete-results-grid" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="card" id="delete-action-card" style="display:none; margin-top:18px;">
+      <button class="btn btn-primary btn-full" id="delete-convert-btn" type="button" disabled>Tandai halaman yang ingin dihapus</button>
+      <div class="progress-wrap" id="delete-progress" style="margin-top:14px;">
+        <div class="progress-track"><div class="progress-bar" id="delete-progress-bar"></div></div>
+        <div class="progress-label" id="delete-progress-label">Memproses halaman 0 / 0…</div>
+      </div>
+    </div>
+
+    <div class="card" id="delete-output-card" style="display:none; margin-top:18px;">
+      <div class="file-summary">
+        <div class="swatch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></div>
+        <div class="info"><div class="name" id="delete-output-name">document.pdf</div><div class="meta" id="delete-output-meta">—</div></div>
+        <button class="btn btn-primary" id="delete-download-btn" type="button" style="padding:8px 14px; font-size:13px;">Download</button>
+      </div>
+    </div>
+  </section>
+
 
   <footer class="footer">
     <span>PDF ⇄ JPEG &amp; Compress · client-side, no uploads</span>
@@ -1980,6 +2059,212 @@ if (typeof window !== 'undefined') { window.JpegPdfLib = JpegPdfLib; }
       showError(cErrorEl, cErrorText, 'This file is bigger than 16 MB, which is too large to save from this preview. Try a stronger compression level.');
     } else if (result.ok) {
       showError(cErrorEl, cErrorText, '');
+    }
+  });
+
+  // ============================================================
+  // Delete PDF pages — click pages in a contact sheet to mark them
+  // for removal, then rebuild the PDF from the remaining pages
+  // (rendered as high-quality JPEGs, same technique as Compress PDF —
+  // text becomes non-selectable in the result).
+  // ============================================================
+  const DELETE_DPI = 200, DELETE_QUALITY = 0.92;
+  const delState = { file: null, doc: null, numPages: 0, marked: new Set(), thumbUrls: [] };
+  const delDropzone = $('#delete-dropzone'), delInput = $('#delete-input');
+  const delSummary = $('#delete-file-summary'), delName = $('#delete-file-name'), delMeta = $('#delete-file-meta'), delClearBtn = $('#delete-clear-btn');
+  const delResultsBlock = $('#delete-results-block'), delResultsTitle = $('#delete-results-title'), delResultsGrid = $('#delete-results-grid');
+  const delSelectAllBtn = $('#delete-select-all-btn'), delSelectNoneBtn = $('#delete-select-none-btn');
+  const delActionCard = $('#delete-action-card');
+  const delConvertBtn = $('#delete-convert-btn');
+  const delProgress = $('#delete-progress'), delProgressBar = $('#delete-progress-bar'), delProgressLabel = $('#delete-progress-label');
+  const delErrorEl = $('#delete-error'), delErrorText = $('#delete-error-text');
+  const delOutputCard = $('#delete-output-card'), delOutputName = $('#delete-output-name'), delOutputMeta = $('#delete-output-meta'), delDownloadBtn = $('#delete-download-btn');
+  let delBlob = null, delFilename = 'document.pdf';
+
+  wireDropzone(delDropzone, delInput, files => handleDelFile(files[0]));
+
+  function resetDelResults() {
+    delState.thumbUrls.forEach(u => URL.revokeObjectURL(u));
+    delState.thumbUrls = [];
+    delResultsGrid.innerHTML = '';
+    delResultsBlock.style.display = 'none';
+    delActionCard.style.display = 'none';
+  }
+
+  async function handleDelFile(file) {
+    showError(delErrorEl, delErrorText, '');
+    if (!file) return;
+    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
+      showError(delErrorEl, delErrorText, `"${file.name}" doesn't look like a PDF. Choose a .pdf file.`);
+      return;
+    }
+    resetDelResults();
+    delOutputCard.style.display = 'none';
+    try {
+      const buf = await file.arrayBuffer();
+      const doc = await window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+      if (doc.numPages < 2) {
+        delState.file = null; delState.doc = null;
+        delSummary.style.display = 'none';
+        showError(delErrorEl, delErrorText, 'PDF ini hanya punya 1 halaman — tidak ada yang bisa dihapus.');
+        return;
+      }
+      delState.file = file; delState.doc = doc; delState.numPages = doc.numPages; delState.marked = new Set();
+      delName.textContent = file.name;
+      delMeta.textContent = `${doc.numPages} page${doc.numPages === 1 ? '' : 's'} · ${formatBytes(file.size)}`;
+      delSummary.style.display = 'flex';
+      await renderDelThumbs();
+    } catch (err) {
+      delState.file = null; delState.doc = null;
+      delSummary.style.display = 'none';
+      showError(delErrorEl, delErrorText, `Couldn't read "${file.name}" — it may be corrupted, password-protected, or not a valid PDF.`);
+    }
+  }
+
+  delClearBtn.addEventListener('click', () => {
+    delState.file = null; delState.doc = null; delState.marked = new Set();
+    delSummary.style.display = 'none';
+    resetDelResults();
+    delOutputCard.style.display = 'none';
+    showError(delErrorEl, delErrorText, '');
+  });
+
+  async function renderDelThumbs() {
+    delResultsGrid.innerHTML = '';
+    delResultsBlock.style.display = 'block';
+    delActionCard.style.display = 'none';
+    const doc = delState.doc;
+    for (let i = 1; i <= doc.numPages; i++) {
+      delResultsTitle.textContent = `Memuat pratinjau… (${i} / ${doc.numPages})`;
+      await new Promise(r => requestAnimationFrame(r));
+      const page = await doc.getPage(i);
+      const viewport = page.getViewport({ scale: 90 / 72 });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(viewport.width));
+      canvas.height = Math.max(1, Math.round(viewport.height));
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.7));
+      const url = URL.createObjectURL(blob);
+      delState.thumbUrls.push(url);
+      page.cleanup();
+
+      const idx = i - 1;
+      const card = document.createElement('div');
+      card.className = 'result-card';
+      card.dataset.idx = String(idx);
+      card.innerHTML = `
+        <div class="thumb">
+          <span class="index">${pad(i, 2)}</span>
+          <img src="${url}" alt="Page ${i} preview" loading="lazy" />
+          <div class="mark-icon">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </div>
+        </div>
+        <div class="meta-row">
+          <span class="size">Disimpan</span>
+        </div>`;
+      card.addEventListener('click', () => toggleDelMark(idx));
+      delResultsGrid.appendChild(card);
+    }
+    updateDelUi();
+    delActionCard.style.display = 'block';
+  }
+
+  function toggleDelMark(idx) {
+    if (delState.marked.has(idx)) delState.marked.delete(idx);
+    else delState.marked.add(idx);
+    updateDelUi();
+  }
+
+  function updateDelUi() {
+    $$('.result-card', delResultsGrid).forEach(card => {
+      const idx = parseInt(card.dataset.idx, 10);
+      const marked = delState.marked.has(idx);
+      card.classList.toggle('marked', marked);
+      const label = card.querySelector('.size');
+      if (label) label.textContent = marked ? 'Akan dihapus' : 'Disimpan';
+    });
+    const total = delState.numPages;
+    const toDelete = delState.marked.size;
+    const toKeep = total - toDelete;
+    delResultsTitle.textContent = `${total} halaman · ${toDelete} ditandai hapus`;
+    delConvertBtn.disabled = !(toDelete > 0 && toKeep > 0);
+    delConvertBtn.textContent = toDelete > 0
+      ? `Hapus ${toDelete} halaman & unduh PDF`
+      : 'Tandai halaman yang ingin dihapus';
+  }
+
+  delSelectAllBtn.addEventListener('click', () => {
+    if (!delState.numPages) return;
+    for (let i = 0; i < delState.numPages; i++) delState.marked.add(i);
+    updateDelUi();
+  });
+  delSelectNoneBtn.addEventListener('click', () => {
+    delState.marked.clear();
+    updateDelUi();
+  });
+
+  delConvertBtn.addEventListener('click', async () => {
+    if (!delState.doc || !delState.marked.size) return;
+    showError(delErrorEl, delErrorText, '');
+    delConvertBtn.disabled = true;
+    delProgress.classList.add('active');
+    delOutputCard.style.display = 'none';
+    try {
+      const doc = delState.doc;
+      const keepIndexes = [];
+      for (let i = 0; i < delState.numPages; i++) if (!delState.marked.has(i)) keepIndexes.push(i);
+      const pages = [];
+      let done = 0;
+      for (const idx of keepIndexes) {
+        done++;
+        delProgressLabel.textContent = `Memproses halaman ${done} / ${keepIndexes.length}…`;
+        delProgressBar.style.width = `${((done - 1) / keepIndexes.length) * 100}%`;
+        await new Promise(r => requestAnimationFrame(r));
+        const page = await doc.getPage(idx + 1);
+        const viewport = page.getViewport({ scale: DELETE_DPI / 72 });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(viewport.width));
+        canvas.height = Math.max(1, Math.round(viewport.height));
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', DELETE_QUALITY));
+        const abuf = await blob.arrayBuffer();
+        const vp1 = page.getViewport({ scale: 1 });
+        pages.push({
+          bytes: new Uint8Array(abuf),
+          pageWidthPt: vp1.width, pageHeightPt: vp1.height,
+          imgX: 0, imgY: 0, imgWPt: vp1.width, imgHPt: vp1.height,
+          width: canvas.width, height: canvas.height, components: 3,
+        });
+        page.cleanup();
+      }
+      delProgressBar.style.width = '100%';
+      const pdfBytes = window.JpegPdfLib.buildPdfFromJpegs(pages);
+      delBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+      delFilename = (baseName(delState.file.name) || 'document') + '-edited.pdf';
+      delOutputName.textContent = delFilename;
+      delOutputMeta.textContent = `${pages.length} dari ${delState.numPages} halaman disimpan · ${formatBytes(delBlob.size)}`;
+      delOutputCard.style.display = 'block';
+    } catch (err) {
+      showError(delErrorEl, delErrorText, 'Something went wrong while processing this PDF. Try a different file.');
+    } finally {
+      delProgress.classList.remove('active');
+      updateDelUi();
+    }
+  });
+  delDownloadBtn.addEventListener('click', async () => {
+    if (!delBlob) return;
+    delDownloadBtn.disabled = true;
+    const result = await offerDownload(delFilename, delBlob);
+    delDownloadBtn.disabled = false;
+    if (result.code === 'too_large') {
+      showError(delErrorEl, delErrorText, 'This file is bigger than 16 MB, which is too large to save from this preview.');
+    } else if (result.ok) {
+      showError(delErrorEl, delErrorText, '');
     }
   });
 
